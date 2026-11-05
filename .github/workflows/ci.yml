@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      # Lightweight install: lexicon backends, no model downloads.
+      - run: pip install -e ".[dev,agent]"
+      - run: pytest -q
+      - name: Smoke-test the CLI on the sample dataset
+        run: |
+          sed -i 's/backend: "auto"/backend: "lexicon"/' config.yaml
+          sov analyze
