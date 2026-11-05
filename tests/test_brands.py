@@ -51,3 +51,8 @@ def test_legacy_flat_config_folds_products_into_first_brand():
 def test_structured_config():
     cfg = {"brands": {"primary": {"name": "Atomberg", "aliases": ["Renesa"]}, "competitors": [{"name": "Usha"}]}}
     assert [b.name for b in brands_from_config(cfg)] == ["Atomberg", "Usha"]
+
+
+def test_brand_followed_by_product_is_one_mention_without_explicit_alias():
+    m = BrandMatcher([Brand("Atomberg", ("Renesa",), primary=True)])
+    assert m.count("Atomberg Renesa and Atomberg-Renesa")["Atomberg"] == 2

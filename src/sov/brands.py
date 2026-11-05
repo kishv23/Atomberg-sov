@@ -22,7 +22,9 @@ class Brand:
 
     @property
     def terms(self) -> List[str]:
-        return [self.name, *self.aliases]
+        """Name, aliases, and "<name> <alias>" so "Atomberg Renesa" is one mention."""
+        combined = [f"{self.name} {a}" for a in self.aliases if not a.lower().startswith(self.name.lower())]
+        return list(dict.fromkeys([self.name, *self.aliases, *combined]))
 
 
 def _term_to_pattern(term: str) -> str:
