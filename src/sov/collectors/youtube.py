@@ -1,97 +1,100 @@
-import os
+"""YouTube Data API v3 collector."""
+from __future__ import annotations
+
 import argparse
 import logging
+import os
+from typing import List, Optional
+
 import yaml
-from googleapiclient.discovery import build
-from sov.io import write_csv, ensure_dirs
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+from sov.io import ensure_dirs, write_csv
 
-def fetch_youtube(api_key: str, query: str, max_results: int = 200):
-    """
-    Fetch up to max_results YouTube videos for a query.
-    - Uses pagination (pageToken) to fetch beyond 50 results.
-    - Enriches rows with views, likes, comments, published date.
-    """
-    youtube = build("youtube", "v3", developerKey=api_key)
+log = logging.getLogger(__name__)
 
-    rows = []
+PAGE_SIZE = 50  # API maximum for search.list and videos.list
+
+
+def build_client(api_key: str):
+    from googleapiclient.discovery import build  # optional dependency
+
+    return build("youtube", "v3", developerKey=api_key, cache_discovery=False)
+
+
+def _int_or_none(stats: dict, key: str) -> Optional[int]:
+    return int(stats[key]) if key in stats else None
+
+
+def fetch_youtube(api_key: Optional[str], query: str, max_results: int = 200, client=None, region: str = "IN") -> List[dict]:
+    """Fetches up to max_results videos with view, like and comment counts."""
+    youtube = client or build_client(api_key)
+    rows: List[dict] = []
+    seen = set()
     page_token = None
-    rank, fetched = 1, 0
 
-    while fetched < max_results:
-        batch_size = min(50, max_results - fetched)
-        search_request = youtube.search().list(
-            q=query,
-            part="id,snippet",
-            maxResults=batch_size,
-            type="video",
-            pageToken=page_token
+    while len(rows) < max_results:
+        search = (
+            youtube.search()
+            .list(q=query, part="id,snippet", type="video", maxResults=min(PAGE_SIZE, max_results - len(rows)), pageToken=page_token, regionCode=region)
+            .execute()
         )
-        search_response = search_request.execute()
-
-        video_ids = [item["id"]["videoId"] for item in search_response.get("items", [])]
-        if not video_ids:
+        items = [i for i in search.get("items", []) if i["id"].get("videoId") not in seen]
+        if not items:
             break
+        ids = [i["id"]["videoId"] for i in items]
+        details = youtube.videos().list(part="snippet,statistics", id=",".join(ids)).execute()
+        stats_by_id = {v["id"]: v.get("statistics", {}) for v in details.get("items", [])}
 
-        # Fetch statistics for the batch
-        video_request = youtube.videos().list(
-            part="snippet,statistics",
-            id=",".join(video_ids)
-        )
-        video_response = video_request.execute()
-        video_map = {item["id"]: item for item in video_response.get("items", [])}
-
-        for item in search_response.get("items", []):
+        for item in items:
             vid = item["id"]["videoId"]
-            snippet = item["snippet"]
-            stats = video_map.get(vid, {}).get("statistics", {})
+            seen.add(vid)
+            snip = item["snippet"]
+            stats = stats_by_id.get(vid, {})
+            rows.append(
+                {
+                    "platform": "youtube",
+                    "query": query,
+                    "rank": len(rows) + 1,
+                    "url": f"https://www.youtube.com/watch?v={vid}",
+                    "title": snip.get("title"),
+                    "snippet": snip.get("description"),
+                    "publisher": snip.get("channelTitle"),
+                    "views": _int_or_none(stats, "viewCount"),
+                    "likes": _int_or_none(stats, "likeCount"),
+                    "comments": _int_or_none(stats, "commentCount"),
+                    "published_at": snip.get("publishedAt"),
+                    "raw_text": f"{snip.get('title', '')} {snip.get('description', '')}",
+                }
+            )
+            if len(rows) >= max_results:
+                break
 
-            rows.append({
-                "platform": "youtube",
-                "query": query,
-                "rank": rank,
-                "url": f"https://www.youtube.com/watch?v={vid}",
-                "title": snippet.get("title"),
-                "snippet": snippet.get("description"),
-                "publisher": snippet.get("channelTitle"),
-                "views": int(stats.get("viewCount", 0)) if "viewCount" in stats else None,
-                "likes": int(stats.get("likeCount", 0)) if "likeCount" in stats else None,
-                "comments": int(stats.get("commentCount", 0)) if "commentCount" in stats else None,
-                "published_at": snippet.get("publishedAt"),
-                "raw_text": f"{snippet.get('title','')} {snippet.get('description','')}"
-            })
-            rank += 1
-            fetched += 1
-
-        page_token = search_response.get("nextPageToken")
+        page_token = search.get("nextPageToken")
         if not page_token:
             break
-
     return rows
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--query", default=None)
+    parser.add_argument("--max", type=int, default=200)
     parser.add_argument("--out", default="data/youtube.csv")
     args = parser.parse_args()
 
-    with open(args.config, "r", encoding="utf-8") as f:
+    with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-
-    api_key = os.getenv(cfg["platforms"]["youtube"]["api_key_env"])
+    env = cfg["platforms"]["youtube"]["api_key_env"]
+    api_key = os.getenv(env)
     if not api_key:
-        logging.error("Missing YOUTUBE_API_KEY env var.")
-        return
+        raise SystemExit(f"Set {env}")
 
-    ensure_dirs(os.path.dirname(args.out))
-    query = cfg["keywords"]["seeds"][0]
-    max_results = min(cfg["default_top_n"], 200)  # cap at 200
-    logging.info(f"Fetching up to {max_results} YouTube results for query: '{query}'")
-    rows = fetch_youtube(api_key, query, max_results)
+    ensure_dirs(os.path.dirname(args.out) or ".")
+    rows = fetch_youtube(api_key, args.query or cfg["keywords"]["seeds"][0], args.max)
     write_csv(rows, args.out)
-    logging.info(f"Saved {len(rows)} YouTube rows → {args.out}")
+    log.info("Saved %d YouTube rows to %s", len(rows), args.out)
 
 
 if __name__ == "__main__":
