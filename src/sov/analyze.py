@@ -4,9 +4,9 @@ from typing import Dict, List
 import pandas as pd
 from datetime import datetime
 
-from utils.io import ensure_dirs, read_csvs, write_csv, write_json
-from utils.brands import compile_brand_regexes, count_mentions
-from utils.text import sentiment_score
+from sov.io import ensure_dirs, read_csvs, write_csv, write_json
+from sov.brands import compile_brand_regexes, count_mentions
+from sov.sentiment import sentiment_score
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

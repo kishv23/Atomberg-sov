@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atomberg-sov"
+version = "0.2.0"
+description = "Autonomous Share-of-Voice agent: crawl YouTube and Google, run aspect-level sentiment, benchmark brands."
+requires-python = ">=3.10"
+dependencies = ["pandas", "numpy", "pyyaml", "requests", "python-dateutil"]
+
+[project.optional-dependencies]
+youtube = ["google-api-python-client"]
+nlp = ["transformers", "torch", "sentencepiece"]
+absa = ["pyabsa"]
+agent = ["langgraph"]
+app = ["streamlit", "altair"]
+dev = ["pytest"]
+
+[project.scripts]
+sov = "sov.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
