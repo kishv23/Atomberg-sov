@@ -113,6 +113,7 @@ def brand_aspect_table(texts: List[str], matcher: BrandMatcher, backend: str = "
     An aspect is attributed to a brand when both appear in the same sentence,
     which keeps "Atomberg is silent but Havells is noisy" from blending.
     """
+    backend = resolve_backend(backend)  # resolve once, not per text
     agg = defaultdict(lambda: {"mentions": 0, "positive": 0, "negative": 0, "neutral": 0, "score_sum": 0.0})
     for text in texts:
         for hit in extract(text, backend):
