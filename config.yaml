@@ -1,5 +1,12 @@
 project_name: "Smart Fan Share-of-Voice (SoV) AI Agent"
-default_top_n: 200   # YouTube will cap at 200, Google at 100
+
+# Crawl budget per seed query, across all platforms. YouTube search pages
+# out at about 500 results and Google Custom Search at 100 per query, so the
+# agent expands each seed into variants until the budget is met.
+crawl:
+  max_results_per_query: 2000
+  youtube_per_variant: 200
+  google_per_variant: 100
 
 platforms:
   youtube:
@@ -11,24 +18,44 @@ platforms:
 keywords:
   seeds:
     - "smart fan"
+  modifiers:
+    - "best"
+    - "review"
+    - "BLDC"
+    - "energy saving"
+    - "remote control"
+    - "wifi"
+    - "India"
+    - "vs"
+    - "under 5000"
+    - "noise"
 
 brands:
   primary:
-    - "Atomberg"
-    - "Atomberg Renesa"
-    - "Atomberg Efficio"
-    - "Atomberg Studio"
+    name: "Atomberg"
+    aliases: ["Atomberg Renesa", "Atomberg Efficio", "Atomberg Studio", "Atomberg Aris", "Renesa", "Efficio"]
   competitors:
-    - "Orient"
-    - "Havells"
-    - "Usha"
-    - "Crompton"
-    - "Luminous"
-    - "Bajaj"
-    - "Polycab"
-    - "V-Guard"
-    - "Anchor"
-    - "Panasonic"
+    - name: "Orient"
+      aliases: ["Orient Electric"]
+    - name: "Havells"
+    - name: "Usha"
+    - name: "Crompton"
+      aliases: ["Crompton Greaves"]
+    - name: "Luminous"
+    - name: "Bajaj"
+      aliases: ["Bajaj Electricals"]
+    - name: "Polycab"
+    - name: "V-Guard"
+    - name: "Anchor"
+      aliases: ["Anchor by Panasonic"]
+    - name: "Panasonic"
+
+sentiment:
+  backend: "auto"        # auto | transformers | lexicon
+  threshold: 0.25
+
+absa:
+  backend: "auto"        # auto | pyabsa | lexicon
 
 output:
   data_dir: "data"
