@@ -8,7 +8,7 @@ def _pct(x: float) -> str:
     return f"{x * 100:.1f}%"
 
 
-def generate_insights(summary: dict, min_aspect_mentions: int = 3) -> List[dict]:
+def generate_insights(summary: dict, min_aspect_mentions: int = 5) -> List[dict]:
     primary = summary["primary"]
     out: List[dict] = []
 
