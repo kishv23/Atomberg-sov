@@ -13,12 +13,20 @@ def ensure_dirs(*paths: str) -> None:
     for p in paths:
         os.makedirs(p, exist_ok=True)
 
-def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
+_DEFAULT = object()
+
+
+def write_csv(rows: List[Dict[str, Any]], path: str, columns=_DEFAULT) -> None:
+    """Writes rows to CSV. By default enforces the unified crawl schema;
+    pass columns=None to keep the rows' own columns."""
     df = pd.DataFrame(rows)
-    for col in UNIFIED_COLUMNS:
-        if col not in df.columns:
-            df[col] = None
-    df = df[UNIFIED_COLUMNS]
+    if columns is _DEFAULT:
+        columns = UNIFIED_COLUMNS
+    if columns is not None:
+        for col in columns:
+            if col not in df.columns:
+                df[col] = None
+        df = df[columns]
     df.to_csv(path, index=False, encoding="utf-8")
 
 def read_csvs(paths: List[str]) -> pd.DataFrame:
