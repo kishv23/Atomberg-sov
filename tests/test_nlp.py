@@ -54,3 +54,12 @@ def test_query_terms_and_aspect_nouns_are_neutral():
     # Every crawled item contains the query "smart fan"; it must not bias sentiment.
     assert lexicon_score("smart fan") == 0.0
     assert lexicon_score("low noise fan") == 0.0
+
+
+def test_brandless_sentence_inherits_single_document_brand():
+    matcher = BrandMatcher([Brand("Atomberg", primary=True), Brand("Havells")])
+    rows = brand_aspect_table(["Atomberg review. Super silent motor."], matcher, backend="lexicon")
+    assert any(r["brand"] == "Atomberg" and r["aspect"] == "noise" for r in rows)
+    # With two brands in the document, brandless sentences stay unattributed.
+    rows = brand_aspect_table(["Atomberg vs Havells. Super silent motor."], matcher, backend="lexicon")
+    assert not any(r["aspect"] == "noise" for r in rows)

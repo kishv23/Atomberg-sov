@@ -111,13 +111,19 @@ def brand_aspect_table(texts: List[str], matcher: BrandMatcher, backend: str = "
     """Aggregates aspect sentiment per brand.
 
     An aspect is attributed to a brand when both appear in the same sentence,
-    which keeps "Atomberg is silent but Havells is noisy" from blending.
+    which keeps "Atomberg is silent but Havells is noisy" from blending. A
+    sentence naming no brand inherits the brand of a single-brand document.
     """
     backend = resolve_backend(backend)  # resolve once, not per text
     agg = defaultdict(lambda: {"mentions": 0, "positive": 0, "negative": 0, "neutral": 0, "score_sum": 0.0})
     for text in texts:
+        doc_brands = {b: n for b, n in matcher.count(text).items() if n}
         for hit in extract(text, backend):
             counts = matcher.count(hit["sentence"])
+            if not any(counts.values()) and len(doc_brands) == 1:
+                # "Atomberg Renesa review. Super silent motor." - the second
+                # sentence is still about the only brand in the document.
+                counts = doc_brands
             for brand, n in counts.items():
                 if n == 0:
                     continue
