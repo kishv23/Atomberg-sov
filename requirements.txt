@@ -1,24 +1,23 @@
-# Core
+# Core (also declared in pyproject.toml)
 pandas
 numpy
 pyyaml
 python-dateutil
-tqdm
 requests
-regex
 
-# Google APIs (YouTube + CSE)
+# Collectors
 google-api-python-client
-google-auth
-google-auth-httplib2
-google-auth-oauthlib
 
-# NLP sentiment (Hugging Face)
+# Agent
+langgraph
+
+# NLP: document sentiment and aspect-based sentiment
 transformers
 torch
 sentencepiece
+pyabsa
 
-# App
+# Dashboard
 streamlit
 altair
 
